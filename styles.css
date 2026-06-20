@@ -195,6 +195,7 @@ h2 {
 }
 
 .control-panel,
+.starter-panel,
 .composer,
 .wish-wall {
   margin-top: 18px;
@@ -213,9 +214,37 @@ h2 {
   padding: 18px;
 }
 
+.starter-panel,
 .composer,
 .wish-wall {
   padding: clamp(20px, 4vw, 36px);
+}
+
+.create-wall-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: end;
+  margin-top: 24px;
+}
+
+.link-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+
+.copy-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.copy-row input {
+  min-width: 0;
+  color: #554c43;
 }
 
 .wish-form {
@@ -456,8 +485,36 @@ body:not(.celebrating) .confetti {
 
 body.shared-card .hero,
 body.shared-card .control-panel,
+body.shared-card .starter-panel,
 body.shared-card .composer,
 body.shared-card #clear-wishes {
+  display: none;
+}
+
+body.home-mode #scroll-to-form,
+body.home-mode #copy-card-link,
+body.home-mode .control-panel,
+body.home-mode .composer,
+body.home-mode .wish-wall {
+  display: none;
+}
+
+body.wall-mode #create-wall-button,
+body.wall-mode .starter-panel {
+  display: none;
+}
+
+body.contributor-mode #copy-card-link,
+body.contributor-mode .control-panel,
+body.contributor-mode #clear-wishes {
+  display: none;
+}
+
+body.admin-mode .starter-panel {
+  display: block;
+}
+
+body.admin-mode .create-wall-form {
   display: none;
 }
 
@@ -494,6 +551,7 @@ body.shared-card #wall-title::before {
   }
 
   .wish-form,
+  .create-wall-form,
   .form-grid,
   .wishes-grid {
     grid-template-columns: 1fr;
@@ -512,8 +570,13 @@ body.shared-card #wall-title::before {
 
   .hero__actions .button,
   .control-panel .field,
-  .control-panel .toggle {
+  .control-panel .toggle,
+  .copy-row .button {
     width: 100%;
+  }
+
+  .copy-row {
+    grid-template-columns: 1fr;
   }
 
   .button {

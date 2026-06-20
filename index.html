@@ -34,13 +34,53 @@
             A shared wall for photos, notes, and warm wishes from everyone who loves you.
           </p>
           <div class="hero__actions">
+            <button class="button button--primary" id="create-wall-button" type="button">
+              Create Wall
+            </button>
             <button class="button button--primary" id="scroll-to-form" type="button">
               Add a Wish
             </button>
             <button class="button button--secondary" id="copy-card-link" type="button">
-              Copy Card Link
+              Copy View Link
             </button>
           </div>
+        </div>
+      </section>
+
+      <section class="starter-panel" id="starter-panel" aria-labelledby="starter-title">
+        <div>
+          <p class="section-kicker">For the handler</p>
+          <h2 id="starter-title">Create a birthday wall</h2>
+        </div>
+        <form id="create-wall-form" class="create-wall-form">
+          <label class="field">
+            Birthday person
+            <input id="new-recipient-input" type="text" maxlength="40" required placeholder="Her name" />
+          </label>
+          <button class="button button--primary" type="submit">Create Share Links</button>
+        </form>
+        <div class="link-panel" id="link-panel" hidden>
+          <label class="field">
+            Wish link
+            <div class="copy-row">
+              <input id="wish-link-output" type="text" readonly />
+              <button class="button button--secondary" data-copy-target="wish-link-output" type="button">Copy</button>
+            </div>
+          </label>
+          <label class="field">
+            Birthday view link
+            <div class="copy-row">
+              <input id="view-link-output" type="text" readonly />
+              <button class="button button--secondary" data-copy-target="view-link-output" type="button">Copy</button>
+            </div>
+          </label>
+          <label class="field">
+            Handler link
+            <div class="copy-row">
+              <input id="admin-link-output" type="text" readonly />
+              <button class="button button--secondary" data-copy-target="admin-link-output" type="button">Copy</button>
+            </div>
+          </label>
         </div>
       </section>
 

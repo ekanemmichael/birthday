@@ -1,5 +1,3 @@
-const cardKey = "birthday-card";
-
 function json(data, init = {}) {
   return new Response(JSON.stringify(data), {
     ...init,
@@ -24,21 +22,99 @@ function cleanWish(entry) {
   };
 }
 
-async function readCard(env) {
-  const stored = await env.BIRTHDAY_KV.get(cardKey, "json");
+function makeId(length = 12) {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => (byte % 36).toString(36)).join("");
+}
+
+function wallKey(wallId) {
+  return `wall:${wallId}`;
+}
+
+function publicWall(wall) {
   return {
-    recipient: cleanText(stored?.recipient || "Friend", 40),
-    wishes: Array.isArray(stored?.wishes) ? stored.wishes.map(cleanWish) : [],
+    id: wall.id,
+    recipient: cleanText(wall.recipient || "Friend", 40),
+    wishes: Array.isArray(wall.wishes) ? wall.wishes.map(cleanWish) : [],
   };
 }
 
-async function writeCard(env, card) {
-  const nextCard = {
-    recipient: cleanText(card.recipient || "Friend", 40),
-    wishes: Array.isArray(card.wishes) ? card.wishes.map(cleanWish).slice(0, 120) : [],
+async function readWall(env, wallId) {
+  const wall = await env.BIRTHDAY_KV.get(wallKey(wallId), "json");
+  return wall ? publicWall(wall) : null;
+}
+
+async function readPrivateWall(env, wallId) {
+  return env.BIRTHDAY_KV.get(wallKey(wallId), "json");
+}
+
+async function writeWall(env, wall) {
+  const nextWall = {
+    id: cleanText(wall.id, 32),
+    adminToken: cleanText(wall.adminToken, 64),
+    createdAt: wall.createdAt || new Date().toISOString(),
+    recipient: cleanText(wall.recipient || "Friend", 40),
+    wishes: Array.isArray(wall.wishes) ? wall.wishes.map(cleanWish).slice(0, 120) : [],
   };
-  await env.BIRTHDAY_KV.put(cardKey, JSON.stringify(nextCard));
-  return nextCard;
+  await env.BIRTHDAY_KV.put(wallKey(nextWall.id), JSON.stringify(nextWall));
+  return nextWall;
+}
+
+async function createWall(env, request) {
+  const body = await request.json();
+  const wall = await writeWall(env, {
+    id: makeId(12),
+    adminToken: makeId(24),
+    createdAt: new Date().toISOString(),
+    recipient: cleanText(body.recipient || "Friend", 40),
+    wishes: [],
+  });
+
+  return json({
+    ...publicWall(wall),
+    adminToken: wall.adminToken,
+  }, { status: 201 });
+}
+
+async function updateWall(env, request, wallId) {
+  const token = request.headers.get("x-admin-token") || "";
+  const currentWall = await readPrivateWall(env, wallId);
+  if (!currentWall) return json({ error: "Wall not found" }, { status: 404 });
+  if (currentWall.adminToken !== token) return json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await request.json();
+  const wall = await writeWall(env, {
+    ...currentWall,
+    recipient: body.recipient || currentWall.recipient,
+    wishes: Array.isArray(body.wishes) ? body.wishes : currentWall.wishes,
+  });
+
+  return json(publicWall(wall));
+}
+
+async function addWish(env, request, wallId) {
+  const entry = cleanWish(await request.json());
+  if (!entry.name || !entry.wish || !entry.note) {
+    return json({ error: "Missing required wish fields" }, { status: 400 });
+  }
+
+  const wall = await readPrivateWall(env, wallId);
+  if (!wall) return json({ error: "Wall not found" }, { status: 404 });
+
+  wall.wishes = Array.isArray(wall.wishes) ? wall.wishes : [];
+  wall.wishes.unshift(entry);
+  return json(publicWall(await writeWall(env, wall)));
+}
+
+async function resetWall(env, request, wallId) {
+  const token = request.headers.get("x-admin-token") || "";
+  const wall = await readPrivateWall(env, wallId);
+  if (!wall) return json({ error: "Wall not found" }, { status: 404 });
+  if (wall.adminToken !== token) return json({ error: "Unauthorized" }, { status: 401 });
+
+  wall.wishes = [];
+  return json(publicWall(await writeWall(env, wall)));
 }
 
 export async function onRequest({ request, env }) {
@@ -46,29 +122,32 @@ export async function onRequest({ request, env }) {
     return json({ error: "Missing BIRTHDAY_KV binding" }, { status: 500 });
   }
 
+  const url = new URL(request.url);
+  const wallId = cleanText(url.searchParams.get("wall"), 32);
+
+  if (request.method === "POST" && !wallId) {
+    return createWall(env, request);
+  }
+
+  if (!wallId) {
+    return json({ error: "Missing wall id" }, { status: 400 });
+  }
+
   if (request.method === "GET") {
-    return json(await readCard(env));
+    const wall = await readWall(env, wallId);
+    return wall ? json(wall) : json({ error: "Wall not found" }, { status: 404 });
   }
 
   if (request.method === "POST") {
-    const entry = cleanWish(await request.json());
-    if (!entry.name || !entry.wish || !entry.note) {
-      return json({ error: "Missing required wish fields" }, { status: 400 });
-    }
-
-    const card = await readCard(env);
-    card.wishes.unshift(entry);
-    return json(await writeCard(env, card));
+    return addWish(env, request, wallId);
   }
 
   if (request.method === "PUT") {
-    const body = await request.json();
-    return json(await writeCard(env, body));
+    return updateWall(env, request, wallId);
   }
 
   if (request.method === "DELETE") {
-    await env.BIRTHDAY_KV.delete(cardKey);
-    return json({ recipient: "Friend", wishes: [] });
+    return resetWall(env, request, wallId);
   }
 
   return json({ error: "Method not allowed" }, { status: 405 });
