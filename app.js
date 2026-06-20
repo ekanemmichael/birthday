@@ -1,5 +1,6 @@
 const storageKey = "birthday-card-wishes";
 const recipientKey = "birthday-card-recipient";
+const apiUrl = "/api/card";
 
 const defaultPhoto =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 640'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop stop-color='%23ffd0dc'/%3E%3Cstop offset='.48' stop-color='%23f2b84b'/%3E%3Cstop offset='1' stop-color='%23b7e2dd'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='800' height='640' fill='url(%23g)'/%3E%3Ccircle cx='240' cy='220' r='92' fill='%23fffaf2' opacity='.8'/%3E%3Cpath d='M120 560c78-140 166-210 264-210s186 70 264 210' fill='%23fffaf2' opacity='.78'/%3E%3C/svg%3E";
@@ -49,6 +50,7 @@ let wishes = [];
 let photoData = "";
 let toastTimer = 0;
 let isSharedCard = false;
+let apiAvailable = false;
 
 function fromHash() {
   if (!window.location.hash.startsWith("#card=")) return null;
@@ -68,12 +70,70 @@ function toHashPayload() {
   }))));
 }
 
-function save() {
+function getCard() {
+  return {
+    recipient: elements.recipientInput.value.trim() || "Friend",
+    wishes,
+  };
+}
+
+function saveLocal() {
   localStorage.setItem(storageKey, JSON.stringify(wishes));
   localStorage.setItem(recipientKey, elements.recipientInput.value.trim());
 }
 
-function load() {
+async function saveRemote() {
+  if (!apiAvailable || isSharedCard) return;
+
+  const response = await fetch(apiUrl, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(getCard()),
+  });
+
+  if (!response.ok) {
+    throw new Error("Could not save card");
+  }
+}
+
+async function save() {
+  saveLocal();
+  await saveRemote();
+}
+
+async function addWish(entry) {
+  wishes.unshift(entry);
+  saveLocal();
+
+  if (!apiAvailable) return;
+
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(entry),
+  });
+
+  if (!response.ok) {
+    throw new Error("Could not post wish");
+  }
+
+  const card = await response.json();
+  wishes = card.wishes;
+  elements.recipientInput.value = card.recipient || "Friend";
+  saveLocal();
+}
+
+async function loadRemoteCard() {
+  const response = await fetch(apiUrl, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("Remote card unavailable");
+  }
+
+  apiAvailable = true;
+  return response.json();
+}
+
+async function load() {
   const sharedCard = fromHash();
 
   if (sharedCard?.wishes) {
@@ -82,6 +142,22 @@ function load() {
     wishes = sharedCard.wishes;
     elements.recipientInput.value = sharedCard.recipient || "Friend";
     return;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("view") === "card") {
+    isSharedCard = true;
+    elements.body.classList.add("shared-card");
+  }
+
+  try {
+    const remoteCard = await loadRemoteCard();
+    wishes = remoteCard.wishes || [];
+    elements.recipientInput.value = remoteCard.recipient || "Friend";
+    saveLocal();
+    return;
+  } catch (error) {
+    apiAvailable = false;
   }
 
   const savedWishes = localStorage.getItem(storageKey);
@@ -168,24 +244,38 @@ elements.photoInput.addEventListener("change", async () => {
   elements.photoPreview.style.backgroundImage = `url("${photoData}")`;
 });
 
-elements.form.addEventListener("submit", (event) => {
+elements.form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  wishes.unshift({
+  const entry = {
     name: elements.nameInput.value.trim(),
     wish: elements.wishInput.value.trim(),
     note: elements.noteInput.value.trim(),
     photo: photoData || defaultPhoto,
-  });
-  elements.form.reset();
-  resetPhoto();
-  save();
-  renderWishes();
-  showToast("Wish added to the card.");
+  };
+
+  elements.form.querySelector("button[type='submit']").disabled = true;
+
+  try {
+    await addWish(entry);
+    renderName();
+    renderWishes();
+    elements.form.reset();
+    resetPhoto();
+    showToast(apiAvailable ? "Wish added for everyone." : "Wish added on this browser.");
+  } catch (error) {
+    showToast("Could not save that wish. Try again.");
+  } finally {
+    elements.form.querySelector("button[type='submit']").disabled = false;
+  }
 });
 
-elements.recipientInput.addEventListener("input", () => {
+elements.recipientInput.addEventListener("input", async () => {
   renderName();
-  save();
+  try {
+    await save();
+  } catch (error) {
+    showToast("Name saved on this browser only.");
+  }
 });
 
 elements.scrollToForm.addEventListener("click", () => {
@@ -193,8 +283,8 @@ elements.scrollToForm.addEventListener("click", () => {
 });
 
 elements.copyLink.addEventListener("click", async () => {
-  const baseUrl = window.location.href.split("#")[0];
-  const url = `${baseUrl}#card=${toHashPayload()}`;
+  const baseUrl = window.location.href.split(/[?#]/)[0];
+  const url = apiAvailable ? `${baseUrl}?view=card` : `${baseUrl}#card=${toHashPayload()}`;
 
   try {
     await navigator.clipboard.writeText(url);
@@ -204,12 +294,21 @@ elements.copyLink.addEventListener("click", async () => {
   }
 });
 
-elements.clearWishes.addEventListener("click", () => {
-  if (!window.confirm("Clear all wishes on this browser?")) return;
-  wishes = [];
-  save();
-  renderWishes();
-  showToast("Birthday wall reset.");
+elements.clearWishes.addEventListener("click", async () => {
+  if (!window.confirm(apiAvailable ? "Clear all shared wishes?" : "Clear all wishes on this browser?")) return;
+
+  try {
+    if (apiAvailable) {
+      const response = await fetch(apiUrl, { method: "DELETE" });
+      if (!response.ok) throw new Error("Could not reset card");
+    }
+    wishes = [];
+    saveLocal();
+    renderWishes();
+    showToast(apiAvailable ? "Birthday wall reset for everyone." : "Birthday wall reset.");
+  } catch (error) {
+    showToast("Could not reset the shared wall.");
+  }
 });
 
 elements.celebrationMode.addEventListener("change", () => {
@@ -261,8 +360,12 @@ function startConfetti() {
   draw();
 }
 
-load();
-renderName();
-renderWishes();
-elements.body.classList.add("celebrating");
-startConfetti();
+async function init() {
+  await load();
+  renderName();
+  renderWishes();
+  elements.body.classList.add("celebrating");
+  startConfetti();
+}
+
+init();
