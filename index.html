@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Birthday Wishes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero__media" aria-hidden="true">
+          <div class="photo-strip photo-strip--one">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="photo-strip photo-strip--two">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+        <div class="hero__content">
+          <p class="eyebrow">A pocketful of birthday love</p>
+          <h1 id="page-title">Happy Birthday, <span id="birthday-name">Friend</span></h1>
+          <p class="hero__copy">
+            A shared wall for photos, notes, and warm wishes from everyone who loves you.
+          </p>
+          <div class="hero__actions">
+            <button class="button button--primary" id="scroll-to-form" type="button">
+              Add a Wish
+            </button>
+            <button class="button button--secondary" id="copy-card-link" type="button">
+              Copy Card Link
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="control-panel" aria-label="Card settings">
+        <label class="field field--compact">
+          Birthday person
+          <input id="recipient-input" type="text" maxlength="40" placeholder="Her name" />
+        </label>
+        <label class="toggle">
+          <input id="celebration-mode" type="checkbox" checked />
+          <span>Celebration mode</span>
+        </label>
+      </section>
+
+      <section class="composer" id="wish-form-section" aria-labelledby="composer-title">
+        <div>
+          <p class="section-kicker">For friends and family</p>
+          <h2 id="composer-title">Add your photo and birthday note</h2>
+        </div>
+        <form id="wish-form" class="wish-form">
+          <label class="upload-box" for="photo-input">
+            <input id="photo-input" type="file" accept="image/*" />
+            <span class="upload-box__preview" id="photo-preview"></span>
+            <span class="upload-box__text">Choose Photo</span>
+          </label>
+          <div class="form-grid">
+            <label class="field">
+              Your name
+              <input id="name-input" type="text" maxlength="40" required placeholder="e.g. Maya" />
+            </label>
+            <label class="field">
+              Short wish
+              <input
+                id="wish-input"
+                type="text"
+                maxlength="80"
+                required
+                placeholder="e.g. Shine brighter this year"
+              />
+            </label>
+            <label class="field field--full">
+              Birthday note
+              <textarea
+                id="note-input"
+                maxlength="420"
+                required
+                placeholder="Write the thing you want her to remember."
+              ></textarea>
+            </label>
+            <button class="button button--primary field--full" type="submit">Post Wish</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="wish-wall" aria-labelledby="wall-title">
+        <div class="wall-heading">
+          <div>
+            <p class="section-kicker">The birthday wall</p>
+            <h2 id="wall-title">All the love in one place</h2>
+          </div>
+          <button class="icon-button" id="clear-wishes" type="button" aria-label="Clear wishes" title="Clear wishes">
+            Reset
+          </button>
+        </div>
+        <div id="wishes-grid" class="wishes-grid"></div>
+      </section>
+    </main>
+
+    <template id="wish-card-template">
+      <article class="wish-card">
+        <img class="wish-card__photo" alt="" />
+        <div class="wish-card__body">
+          <p class="wish-card__wish"></p>
+          <p class="wish-card__note"></p>
+          <p class="wish-card__name"></p>
+        </div>
+      </article>
+    </template>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <canvas class="confetti" id="confetti-canvas" aria-hidden="true"></canvas>
+    <script src="app.js"></script>
+  </body>
+</html>
