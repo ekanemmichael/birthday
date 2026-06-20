@@ -309,6 +309,12 @@ textarea {
   line-height: 1.55;
 }
 
+#note-input {
+  font-family: Caveat, "Bradley Hand", cursive;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
 input:focus,
 textarea:focus {
   border-color: var(--mint);
@@ -381,6 +387,9 @@ textarea:focus {
 .wish-card__note {
   margin: 12px 0 18px;
   color: #4f463e;
+  font-family: Caveat, "Bradley Hand", cursive;
+  font-size: 1.55rem;
+  font-weight: 600;
   line-height: 1.55;
 }
 
@@ -398,6 +407,16 @@ textarea:focus {
   background: #fffaf2;
   color: var(--muted);
   text-align: center;
+}
+
+.site-footer {
+  padding: 22px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .toast {
